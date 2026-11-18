@@ -34,4 +34,10 @@ npx supabase db push
 
 Semua pengguna baru otomatis berperan VIEWER. Jadikan akun pertama ADMIN lewat Supabase SQL Editor (lihat komentar di bagian atas file migration).
 
-Status: FASE 2 (database, autentikasi, RLS).
+## Master barang dan Excel
+
+- Menu Master Barang: tambah, edit, nonaktifkan, cari (SKU/barcode/nama), filter, pagination.
+- Menu Import/Export (ADMIN): download template, import (mode Barang baru atau Update master), export master.
+- Import atomik lewat fungsi database `import_products`. Stok awal disimpan di `product_opening_stock` dan baru diposting sebagai transaksi OPENING di FASE 4.
+
+Status: FASE 3 (master barang dan Excel).
