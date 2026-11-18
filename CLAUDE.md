@@ -1,0 +1,11 @@
+# Aturan Proyek WHISTLE (Warehouse Inventory, Stock Tracking & Ledger Engine)
+- Nama aplikasi: WHISTLE. Tagline: "Smart Stock. Accurate Value. Total Control". Tampilkan pada judul halaman, layar login, header, nama PWA (manifest), dan README.
+- Spesifikasi lengkap ada di MASTER_PROMPT.md. Baca HANYA bagian yang saya sebutkan, jangan baca seluruh file.
+- Kerjakan hanya fase yang diminta. Jangan lanjut ke fase berikutnya.
+- Supabase adalah sumber kebenaran. Perhitungan Moving Average hanya di fungsi PostgreSQL, bukan di frontend.
+- Pakai NUMERIC (qty 20,4; unit cost 20,6; nilai 20,2; average cost 20,6). Dilarang FLOAT/DOUBLE.
+- Jangan pernah menaruh Service Role Key atau password di repo atau frontend. Pakai .env.local (masuk .gitignore).
+- Tulis tes bersama kode. Jangan klaim selesai sebelum tes benar-benar dijalankan dan lulus.
+- Jangan klaim sudah commit, push, migrasi, atau deploy jika belum berhasil dijalankan.
+- Jawaban akhir tiap tugas maksimal 5 baris: file yang dibuat, hasil tes, masalah tersisa.
+- UI berbahasa Indonesia, mata uang IDR, zona waktu Asia/Jakarta.
