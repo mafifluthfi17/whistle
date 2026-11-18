@@ -69,13 +69,21 @@ describe('import_products: mode NEW', () => {
       `select o.quantity::text as q, o.opening_value::text as v, o.average_cost::text as a, o.posted_at
        from public.product_opening_stock o join public.products p on p.id = o.product_id where p.sku = 'OPN-1'`,
     )
-    expect(r.rows[0]).toMatchObject({ q: '150.0000', v: '1600000.00', a: '10666.666667', posted_at: null })
+    expect(r.rows[0]).toMatchObject({ q: '150.0000', v: '1600000.00', a: '10666.666667' })
+    expect(r.rows[0].posted_at).not.toBeNull()
   })
 
-  it('TIDAK memposting OPENING: tidak ada transaksi, ledger, atau saldo yang dibuat', async () => {
-    expect(await count('inventory_transactions')).toBe(0)
-    expect(await count('inventory_movements')).toBe(0)
-    expect(await count('stock_balances')).toBe(0)
+  it('memposting OPENING satu per SKU: transaksi, ledger, dan saldo dibuat bersama impor', async () => {
+    expect(await count('inventory_transactions')).toBe(1)
+    expect(await count('inventory_movements')).toBe(1)
+    expect(await count('stock_balances')).toBe(1)
+    const tx = await q(`select transaction_type, reference_number, status from public.inventory_transactions`)
+    expect(tx.rows).toEqual([{ transaction_type: 'OPENING', reference_number: 'IMPORT', status: 'POSTED' }])
+    const b = await q(
+      `select sb.quantity::text as q, sb.inventory_value::text as v, sb.average_cost::text as a
+       from public.stock_balances sb join public.products p on p.id = sb.product_id where p.sku = 'OPN-1'`,
+    )
+    expect(b.rows[0]).toEqual({ q: '150.0000', v: '1600000.00', a: '10666.666667' })
   })
 
   it('stok 0 dan nilai 0 tidak membuat baris stok awal', async () => {
@@ -90,7 +98,14 @@ describe('import_products: mode NEW', () => {
 })
 
 describe('import_products: atomik (gagal sebagian = batal semua)', () => {
-  const before = async () => ({ p: await count('products'), o: await count('product_opening_stock'), a: await count('audit_logs') })
+  const before = async () => ({
+    p: await count('products'),
+    o: await count('product_opening_stock'),
+    a: await count('audit_logs'),
+    tx: await count('inventory_transactions'),
+    mv: await count('inventory_movements'),
+    sb: await count('stock_balances'),
+  })
 
   it('barcode duplikat di baris ke-3 membatalkan baris 1-2', async () => {
     const b = await before()
@@ -144,8 +159,7 @@ describe('import_products: mode UPDATE', () => {
   beforeAll(async () => {
     await importAs(admin, [row('UPD-1', { barcode: 'B-UPD', category: 'Lama', brand: 'MerekLama', location: 'L1', minimum_stock: '3', opening_quantity: '10', opening_value: '1000' })])
     pid = (await q(`select id from public.products where sku = 'UPD-1'`)).rows[0].id
-    const wid = (await q(`select id from public.warehouses`)).rows[0].id
-    await q(`insert into public.stock_balances (warehouse_id, product_id, quantity, average_cost, inventory_value) values ($1, $2, 10, 100, 1000)`, [wid, pid])
+    // saldo (10 unit, nilai 1000, avg 100) sudah dibuat oleh posting OPENING saat impor
   })
 
   it('mengubah master tetapi tidak menyentuh saldo maupun stok awal', async () => {

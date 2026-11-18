@@ -5,7 +5,7 @@ import { join } from 'node:path'
 const MIGRATIONS_DIR = join(__dirname, '..', '..', 'supabase', 'migrations')
 
 // Meniru lingkungan Supabase: role anon/authenticated, schema auth, dan auth.uid().
-const SUPABASE_STUB = `
+export const SUPABASE_STUB = `
 create role anon nologin;
 create role authenticated nologin;
 create role service_role nologin bypassrls;

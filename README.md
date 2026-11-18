@@ -40,4 +40,19 @@ Semua pengguna baru otomatis berperan VIEWER. Jadikan akun pertama ADMIN lewat S
 - Menu Import/Export (ADMIN): download template, import (mode Barang baru atau Update master), export master.
 - Import atomik lewat fungsi database `import_products`. Stok awal disimpan di `product_opening_stock` dan baru diposting sebagai transaksi OPENING di FASE 4.
 
-Status: FASE 3 (master barang dan Excel).
+## Mesin Moving Weighted Average
+
+Seluruh pembukuan saldo dilakukan di PostgreSQL (`supabase/migrations/20261118000003_inventory_engine.sql`), bukan di frontend:
+
+| Fungsi | Kegunaan |
+|---|---|
+| `post_transaction` | OPENING, IN, OUT, ADJUSTMENT. Atomik, idempoten (`client_transaction_id`), kunci baris per SKU dalam urutan SKU. |
+| `reverse_transaction` | Reversal (ADMIN) dengan replay penuh rangkaian mutasi SKU. |
+| `post_pending_openings` | Memposting stok awal hasil import yang belum diposting. |
+| `reconcile_inventory` | Rekonsiliasi `stock_balances` vs replay ledger vs jumlah mutasi. |
+
+Aturan: IN `avg = round((nilai + nilai masuk) / (qty + qty masuk), 6)`; OUT `HPP = round(qty × avg sebelum, 2)`, avg tidak berubah. Stok negatif ditolak (`WS001`), transaksi mundur ditolak kecuali disetujui ADMIN (`WS002`), validasi (`WS003`), reversal ditolak (`WS004`). Ledger `inventory_movements` bersifat append-only.
+
+Tes konkurensi memakai Postgres sungguhan (`embedded-postgres`), jadi `npm test` mengunduh biner Postgres pada pemasangan pertama.
+
+Status: FASE 4 (mesin Moving Average).
