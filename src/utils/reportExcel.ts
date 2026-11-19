@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import type { AuditRow } from '../types/backup'
 import type {
   MovementReport,
   StockCard,
@@ -370,4 +371,34 @@ export function downloadReport(r: { wb: XLSX.WorkBook; fileName: string }): void
 
 export function reportToBuffer(wb: XLSX.WorkBook): Uint8Array {
   return new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+}
+
+// ---------------------------------------------------------------------------
+// 9. Audit trail (hanya ADMIN yang dapat membacanya, jadi hanya ADMIN yang dapat mengekspornya)
+// ---------------------------------------------------------------------------
+
+/** Batas sel Excel adalah 32.767 karakter. */
+export const EXCEL_CELL_LIMIT = 32000
+
+export function jsonCell(v: unknown): string | null {
+  if (v === null || v === undefined) return null
+  const s = JSON.stringify(v)
+  return s.length > EXCEL_CELL_LIMIT ? `${s.slice(0, EXCEL_CELL_LIMIT)}… (dipotong; isi lengkap di aplikasi)` : s
+}
+
+export function auditWorkbook(rows: AuditRow[], from: string | null, to: string | null): { wb: XLSX.WorkBook; fileName: string } {
+  const cols: Col<AuditRow>[] = [
+    { header: 'Waktu', type: 'datetime', width: 17, value: (r) => r.created_at },
+    { header: 'Pengguna', type: 'text', width: 22, value: (r) => r.user_name },
+    { header: 'Aksi', type: 'text', width: 16, value: (r) => r.action },
+    { header: 'Tabel', type: 'text', width: 24, value: (r) => r.table_name },
+    { header: 'ID Record', type: 'sku', width: 38, value: (r) => r.record_id },
+    { header: 'Nilai Lama', type: 'text', width: 60, value: (r) => jsonCell(r.old_value) },
+    { header: 'Nilai Baru', type: 'text', width: 60, value: (r) => jsonCell(r.new_value) },
+  ]
+  const ws = buildSheet<AuditRow>({ cols, rows })
+  return {
+    wb: workbook([['AUDIT_TRAIL', ws]]),
+    fileName: `WHISTLE_Audit_Trail_${periodLabel(from, to)}.xlsx`,
+  }
 }

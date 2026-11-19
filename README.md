@@ -85,4 +85,15 @@ Catatan: transaksi PENDING/DRAFT tidak pernah dihitung sebagai saldo. Transaksi 
 - **Service worker** hanya meng-cache app shell dan aset (tanpa cache API), jadi aplikasi dapat dibuka offline.
 - Transaksi offline **tidak dijamin berhasil** bila stok berubah di perangkat lain. Uji manual perangkat: [tests/MANUAL_OFFLINE.md](tests/MANUAL_OFFLINE.md).
 
-Status: FASE 8 (offline dan sinkronisasi hybrid).
+## Backup, restore, integritas, dan audit trail
+
+Menu **Pengaturan** (ADMIN) dan **Audit Trail** (ADMIN), migration `20261118000005_backup_restore_audit.sql`.
+
+- **Backup** (file JSON): `FULL` (database lengkap), `MASTER` (master barang), `TRANSACTIONS`, `MOVEMENTS` (arsip). Dibuat di database sebagai teks sehingga angka NUMERIC tetap persis; dilengkapi checksum per tabel. Nama file memuat lingkup dan waktu; SHA-256 ditampilkan untuk verifikasi file.
+- **Restore** (hanya ADMIN, `FULL` dan `MASTER`): validasi integritas file (checksum, skema, relasi, rantai saldo ledger, saldo vs ledger) lalu konfirmasi ketik `PULIHKAN`, titik pemulihan otomatis (5 terbaru), pengantian data secara **atomik**, dan pemeriksaan integritas ulang; gagal di mana pun = seluruhnya dibatalkan. Ledger tetap append-only kecuali di dalam fungsi restore. Pengguna/role dan audit trail tidak diganti; restore dicatat di audit trail.
+- **Backup cloud berbeda dari export Excel**: backup untuk memulihkan, Excel untuk dibaca.
+- **Backup otomatis Supabase TIDAK aktif**: dashboard Supabase (diperiksa 19 Nov 2026) menyatakan Free Plan tidak menyertakan backup project. Backup manual adalah satu-satunya salinan; buatlah berkala.
+- **Audit trail**: pencatatan master, posting, reversal, adjustment, import, role, backup, dan restore; filter tanggal, pengguna, aksi, tabel, pencarian; export Excel. Hanya ADMIN, tidak dapat diubah.
+- Batas: kiriman restore sangat besar (puluhan MB) dapat ditolak batas ukuran permintaan server; pulihkan lewat SQL Editor Supabase bila perlu.
+
+Status: FASE 9 (backup, restore, audit trail).

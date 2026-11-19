@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard'
 import KartuStok from './pages/KartuStok'
 import Laporan from './pages/Laporan'
 import Antrean from './pages/Antrean'
+import Pengaturan from './pages/Pengaturan'
+import AuditTrail from './pages/AuditTrail'
 import TransactionPage from './pages/TransactionPage'
 import { APP_FULL_NAME, APP_NAME, APP_TAGLINE } from './utils/brand'
 
@@ -68,6 +70,12 @@ export default function App() {
       break
     case 'antrean':
       page = <Antrean />
+      break
+    case 'pengaturan':
+      page = <Pengaturan />
+      break
+    case 'audit':
+      page = <AuditTrail />
       break
     case 'import':
       page = <Suspense fallback={<p className="text-sm">Memuat…</p>}><ImportExport /></Suspense>

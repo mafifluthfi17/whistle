@@ -23,6 +23,7 @@ export const NAV: NavItem[] = [
   { id: 'kartu', label: 'Kartu Stok', roles: ALL },
   { id: 'laporan', label: 'Laporan', roles: ALL },
   { id: 'import', label: 'Import/Export', roles: ['ADMIN'] },
+  { id: 'audit', label: 'Audit Trail', roles: ['ADMIN'] },
   { id: 'pengaturan', label: 'Pengaturan', roles: ['ADMIN'] },
 ]
 

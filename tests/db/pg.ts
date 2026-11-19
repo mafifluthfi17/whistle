@@ -38,6 +38,8 @@ export async function startRealDb(): Promise<RealDb> {
     password: 'whistle',
     port,
     persistent: false,
+    // Supabase memakai UTF-8; cluster Windows bawaan memakai WIN1252 sehingga Unicode (emoji, tanda kutip) gagal.
+    initdbFlags: ['--encoding=UTF8', '--locale=C'],
     onLog: () => {},
     onError: () => {},
     // Memori kecil: beberapa klaster tes berjalan paralel dan Windows dapat kehabisan memori komit
