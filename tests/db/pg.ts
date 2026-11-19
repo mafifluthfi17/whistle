@@ -45,6 +45,9 @@ export async function startRealDb(): Promise<RealDb> {
   await server.start()
 
   const admin = new pg.Pool({ host: '127.0.0.1', port, user: 'postgres', password: 'whistle', database: 'postgres', max: 30 })
+  // Saat server dimatikan, koneksi menganggur menerima FATAL 57P01 ("terminating connection due to
+  // administrator command"). Itu normal; tanpa handler, pg melempar error yang tidak tertangani.
+  admin.on('error', () => {})
   await admin.query(SUPABASE_STUB)
   const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
   for (const f of files) await admin.query(readFileSync(join(MIGRATIONS_DIR, f), 'utf8'))
@@ -59,6 +62,7 @@ export async function startRealDb(): Promise<RealDb> {
     },
     async callAs(userId, sql, params = [], role = 'authenticated') {
       const c = await admin.connect()
+      c.on('error', () => {})
       try {
         await c.query('begin')
         await c.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify(userId ? { sub: userId } : {})])
