@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:report": "vitest run --reporter=json --outputFile=tests/.out/vitest.json && node scripts/gen-test-cases.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
@@ -17,11 +19,14 @@
     "dexie": "^4.4.7",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
     "@tailwindcss/vite": "^4.3.5",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.13",
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/pngjs": "^6.0.5",
@@ -31,6 +36,7 @@
     "bwip-js": "^4.11.4",
     "embedded-postgres": "^18.6.0-beta.19",
     "fake-indexeddb": "^6.2.8",
+    "jsdom": "^31.0.1",
     "pg": "^8.23.1",
     "pngjs": "^7.0.0",
     "tailwindcss": "^4.3.5",

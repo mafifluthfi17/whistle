@@ -47,3 +47,16 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Smoke test situs hasil deploy
+        env:
+          SMOKE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        run: node scripts/smoke.mjs "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"

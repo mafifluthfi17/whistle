@@ -8,3 +8,6 @@ dist
 coverage
 supabase/.temp
 supabase/.branches
+
+# keluaran sementara tes
+tests/.out/

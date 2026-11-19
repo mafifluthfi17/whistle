@@ -175,7 +175,8 @@ export default function TransactionPage({ type }: { type: TxType }) {
   }
 
   async function goPreview() {
-    const first = collectIssues(lines)
+    // Stok pada tahap ini bisa usang (dipilih sebelumnya); penilaian stok dilakukan setelah dimuat ulang di bawah.
+    const first = collectIssues(lines).filter((i) => !i.message.startsWith('Melebihi stok'))
     setIssues(first)
     if (first.length) return toast('error', 'Periksa kembali isian yang ditandai')
     setBusy(true)
