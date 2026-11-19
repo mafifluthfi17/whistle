@@ -66,6 +66,23 @@ export function averageCost(value: string, qty: string): string {
   return formatScaled(scaled, 6)
 }
 
+/**
+ * Perkiraan nilai = qty × harga, dibulatkan setengah ke atas pada 2 desimal.
+ * HANYA untuk pratinjau di UI; nilai resmi dihitung oleh database.
+ */
+export function multiplyRound(qty: string, price: string): string {
+  const Q = toScaled(qty, 4)
+  const P = toScaled(price, 6)
+  return formatScaled((Q * P + 5n * 10n ** 7n) / 10n ** 8n, 2) // skala 10 -> 2
+}
+
+/** Bandingkan dua desimal non-negatif: -1, 0, atau 1. */
+export function compareDecimal(a: string, b: string): number {
+  const A = toScaled(a, 6)
+  const B = toScaled(b, 6)
+  return A < B ? -1 : A > B ? 1 : 0
+}
+
 /** Apakah |value - qty*avg| masih dalam toleransi pembulatan? */
 export function valueMatchesAverage(value: string, qty: string, avg: string): boolean {
   const V = toScaled(value, 2) * 10n ** 8n // skala 10

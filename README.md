@@ -55,4 +55,8 @@ Aturan: IN `avg = round((nilai + nilai masuk) / (qty + qty masuk), 6)`; OUT `HPP
 
 Tes konkurensi memakai Postgres sungguhan (`embedded-postgres`), jadi `npm test` mengunduh biner Postgres pada pemasangan pertama.
 
-Status: FASE 4 (mesin Moving Average).
+## Barang Masuk dan Barang Keluar
+
+Menu untuk ADMIN dan WAREHOUSE (mode online). Cari barang (SKU/barcode/nama) atau ketik SKU manual, banyak SKU per dokumen, pratinjau, lalu posting lewat `post_transaction`. Stok tersedia dan average cost selalu dimuat dari server; angka di pratinjau hanya perkiraan. Setiap dokumen punya satu `client_transaction_id` sehingga klik ganda atau retry tidak menggandakan transaksi. Transaksi offline dikerjakan di FASE 8.
+
+Status: FASE 5 (transaksi masuk dan keluar).

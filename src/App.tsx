@@ -5,6 +5,7 @@ import Layout, { NAV, navFor } from './components/Layout'
 import Login from './pages/Login'
 import MasterBarang from './pages/MasterBarang'
 import Placeholder from './pages/Placeholder'
+import TransactionPage from './pages/TransactionPage'
 import { APP_FULL_NAME, APP_NAME, APP_TAGLINE } from './utils/brand'
 
 // SheetJS cukup besar, jadi dimuat hanya saat halaman Import/Export dibuka.
@@ -45,6 +46,12 @@ export default function App() {
   switch (current.id) {
     case 'master':
       page = <MasterBarang />
+      break
+    case 'masuk':
+      page = <TransactionPage key="IN" type="IN" />
+      break
+    case 'keluar':
+      page = <TransactionPage key="OUT" type="OUT" />
       break
     case 'import':
       page = <Suspense fallback={<p className="text-sm">Memuat…</p>}><ImportExport /></Suspense>

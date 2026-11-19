@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 
-export type ToastKind = 'success' | 'error' | 'info' | 'pending' | 'conflict'
+export type ToastKind = 'success' | 'error' | 'info' | 'pending' | 'conflict' | 'insufficient' | 'notfound'
 interface ToastItem {
   id: number
   kind: ToastKind
@@ -13,6 +13,8 @@ const STYLE: Record<ToastKind, string> = {
   info: 'bg-sky-700',
   pending: 'bg-amber-600',
   conflict: 'bg-orange-700',
+  insufficient: 'bg-red-700',
+  notfound: 'bg-rose-700',
 }
 
 const ToastContext = createContext<(kind: ToastKind, text: string) => void>(() => {})
@@ -23,7 +25,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback((kind: ToastKind, text: string) => {
     const id = ++seq.current
     setItems((x) => [...x, { id, kind, text }])
-    setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), kind === 'error' ? 8000 : 4000)
+    const long = kind === 'error' || kind === 'insufficient' || kind === 'notfound'
+    setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), long ? 8000 : 4000)
   }, [])
   const value = useMemo(() => push, [push])
   return (
