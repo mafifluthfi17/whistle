@@ -16,8 +16,20 @@ function client() {
 }
 
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await client().rpc(fn, args)
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new Error('Tidak ada koneksi internet. Laporan dihitung di server dan hanya tersedia saat online.')
+  }
+  let res
+  try {
+    res = await client().rpc(fn, args)
+  } catch (e) {
+    throw new Error(/failed to fetch|network|load failed/i.test((e as Error).message) ? 'Tidak dapat terhubung ke server. Laporan hanya tersedia saat online.' : (e as Error).message)
+  }
+  const { data, error } = res
   if (error) {
+    if (!error.code && /failed to fetch|network|load failed/i.test(error.message)) {
+      throw new Error('Tidak dapat terhubung ke server. Laporan hanya tersedia saat online.')
+    }
     if (error.code === '42501') throw new Error('Anda tidak berhak melihat laporan ini')
     throw new Error(error.message)
   }

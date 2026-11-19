@@ -8,6 +8,7 @@ import Placeholder from './pages/Placeholder'
 import Dashboard from './pages/Dashboard'
 import KartuStok from './pages/KartuStok'
 import Laporan from './pages/Laporan'
+import Antrean from './pages/Antrean'
 import TransactionPage from './pages/TransactionPage'
 import { APP_FULL_NAME, APP_NAME, APP_TAGLINE } from './utils/brand'
 
@@ -25,11 +26,11 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { loading, session, role, isActive, signOut } = useAuth()
+  const { loading, signedIn, role, isActive, signOut } = useAuth()
   const [route, navigate] = useHashRoute()
 
   if (loading) return <Centered><p className="text-sm text-slate-600">Memuat…</p></Centered>
-  if (!session) return <Login />
+  if (!signedIn) return <Login />
 
   if (!isActive || !role) {
     return (
@@ -64,6 +65,9 @@ export default function App() {
       break
     case 'keluar':
       page = <TransactionPage key="OUT" type="OUT" />
+      break
+    case 'antrean':
+      page = <Antrean />
       break
     case 'import':
       page = <Suspense fallback={<p className="text-sm">Memuat…</p>}><ImportExport /></Suspense>

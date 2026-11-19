@@ -15,6 +15,7 @@ export interface StockedProduct {
   sku: string
   barcode: string | null
   product_name: string
+  category?: string | null
   unit: string
   is_active: boolean
   quantity: string
@@ -27,12 +28,13 @@ interface ProductRow {
   sku: string
   barcode: string | null
   product_name: string
+  category: string | null
   unit: string
   is_active: boolean
   stock_balances: { quantity: number | string; average_cost: number | string; inventory_value: number | string }[] | { quantity: number | string; average_cost: number | string; inventory_value: number | string } | null
 }
 
-const SELECT = 'id,sku,barcode,product_name,unit,is_active,stock_balances(quantity,average_cost,inventory_value)'
+const SELECT = 'id,sku,barcode,product_name,category,unit,is_active,stock_balances(quantity,average_cost,inventory_value)'
 
 function mapRow(r: ProductRow): StockedProduct {
   const sb = Array.isArray(r.stock_balances) ? r.stock_balances[0] : r.stock_balances
@@ -41,6 +43,7 @@ function mapRow(r: ProductRow): StockedProduct {
     sku: r.sku,
     barcode: r.barcode,
     product_name: r.product_name,
+    category: r.category,
     unit: r.unit,
     is_active: r.is_active,
     quantity: String(sb?.quantity ?? 0),
@@ -106,6 +109,21 @@ export async function findProductByScan(raw: string): Promise<ScanLookup> {
   if (pick.kind === 'ambiguous') return pick
   if (!pick.product.is_active) return { kind: 'inactive', product: pick.product }
   return { kind: 'found', product: pick.product, matchedBy: pick.matchedBy, candidate: pick.candidate }
+}
+
+const PAGE = 1000
+
+/** Seluruh barang beserta saldo (untuk mengisi cache offline). */
+export async function fetchAllStocked(): Promise<StockedProduct[]> {
+  const out: StockedProduct[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client().from('products').select(SELECT).order('sku').range(from, from + PAGE - 1)
+    if (error) throw new Error(error.message)
+    const rows = ((data ?? []) as unknown as ProductRow[]).map(mapRow)
+    out.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return out
 }
 
 /** Muat ulang stok resmi untuk beberapa SKU (mis. sebelum posting). */

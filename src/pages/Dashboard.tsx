@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useToast } from '../components/Toast'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
+import { useSync } from '../hooks/useSync'
 import { fetchDashboard } from '../services/reports'
 import type { DashboardSummary } from '../types/reports'
 import { STATUS_STYLE, dateTime, qty, rupiah } from '../utils/formatReport'
@@ -18,6 +19,7 @@ function Card({ title, value, sub, tone = 'bg-white' }: { title: string; value: 
 export default function Dashboard({ onNavigate }: { onNavigate: (r: string) => void }) {
   const toast = useToast()
   const online = useOnlineStatus()
+  const { counts } = useSync()
   const [d, setD] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +75,13 @@ export default function Dashboard({ onNavigate }: { onNavigate: (r: string) => v
               <li>
                 Koneksi: <span className={`rounded px-2 py-0.5 text-xs ${online ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{online ? 'Online' : 'Offline'}</span>
               </li>
-              <li className="text-slate-600">Antrean offline di perangkat ini: 0 (sinkronisasi offline tersedia di FASE 8).</li>
+              <li>
+                Antrean offline di perangkat ini:{' '}
+                <span className="font-medium">{counts.PENDING + counts.SYNCING} menunggu</span>
+                {counts.CONFLICT + counts.FAILED > 0 && <span className="font-medium text-red-700"> · {counts.CONFLICT + counts.FAILED} perlu tindakan</span>}
+                <button className="ml-2 text-sky-700 underline" onClick={() => onNavigate('antrean')}>Buka antrean</button>
+              </li>
+              <li className="text-xs text-slate-500">Transaksi di antrean belum dibukukan: tidak termasuk saldo, nilai, maupun jumlah masuk/keluar di atas.</li>
               <li className="text-slate-600">Data pada layar ini dimuat langsung dari server (tanggal {d.today}).</li>
             </ul>
           </div>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import BarcodeScanner from './BarcodeScanner'
 import { useToast } from './Toast'
-import { findProductByScan, type StockedProduct } from '../services/transactions'
+import { lookupCatalog } from '../services/catalog'
+import type { StockedProduct } from '../services/transactions'
 import { validateLines, type TxLine, type TxType } from '../utils/transactionForm'
 import type { CameraError } from '../utils/scanLogic'
 
@@ -44,7 +45,8 @@ export default function ScanModal({ type, onAdd, onClose }: Props) {
       busyRef.current = true
       setLooking(true)
       try {
-        const r = await findProductByScan(raw)
+        const { value: r, source } = await lookupCatalog(raw)
+        if (source === 'cache') toast('info', 'Offline: barang dicari dari data terakhir di perangkat')
         if (r.kind === 'found') {
           setFound({ product: r.product, scanned: raw, matchedBy: r.matchedBy })
           setQuantity('')

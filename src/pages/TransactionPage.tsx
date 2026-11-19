@@ -5,15 +5,12 @@ import { addQuantities, parseDecimal } from '../utils/decimal'
 
 // ZXing cukup besar: dimuat hanya saat panel scan dibuka.
 const ScanModal = lazy(() => import('../components/ScanModal'))
-import {
-  PostFailure,
-  fetchStock,
-  findProductByScan,
-  postTransaction,
-  searchProducts,
-  type PostResult,
-  type StockedProduct,
-} from '../services/transactions'
+import { PostFailure, postTransaction, type PostResult, type StockedProduct } from '../services/transactions'
+import { isOnline, lookupCatalog, outbox, searchCatalog, stockCatalog, type Source } from '../services/catalog'
+import { useSync } from '../hooks/useSync'
+import { useOnlineStatus } from '../hooks/useOnlineStatus'
+import { formatScaled, toScaled } from '../utils/decimal'
+import type { OutboxTxn } from '../types'
 import {
   buildItems,
   estimateValue,
@@ -53,7 +50,15 @@ const KIND_TOAST: Record<PostErrorKind, ToastKind> = {
   unknown: 'error',
 }
 
-type Step = 'edit' | 'preview' | 'done'
+type Step = 'edit' | 'preview' | 'done' | 'queued'
+
+/** a + b (b boleh negatif), qty 4 desimal, tanpa float. */
+function addSigned(a: string, b: string): string {
+  const v = toScaled(a, 4) + (b.startsWith('-') ? -toScaled(b.slice(1), 4) : toScaled(b, 4))
+  const neg = v < 0n
+  const t = formatScaled(neg ? -v : v, 4)
+  return neg ? `-${t}` : t
+}
 
 function lineFrom(p: StockedProduct): TxLine {
   return {
@@ -69,7 +74,9 @@ function lineFrom(p: StockedProduct): TxLine {
 }
 
 export default function TransactionPage({ type }: { type: TxType }) {
-  const { role } = useAuth()
+  const { role, userId } = useAuth()
+  const online = useOnlineStatus()
+  const { cachedAt } = useSync()
   const toast = useToast()
   const isIn = type === 'IN'
 
@@ -90,6 +97,8 @@ export default function TransactionPage({ type }: { type: TxType }) {
   const [hits, setHits] = useState<StockedProduct[]>([])
   const [searching, setSearching] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
+  const [source, setSource] = useState<Source>('server')
+  const [queued, setQueued] = useState<OutboxTxn | null>(null)
 
   // Pencarian barang (debounce)
   useEffect(() => {
@@ -100,8 +109,11 @@ export default function TransactionPage({ type }: { type: TxType }) {
     }
     setSearching(true)
     const h = setTimeout(() => {
-      searchProducts(t)
-        .then(setHits)
+      searchCatalog(t)
+        .then((r) => {
+          setHits(r.value)
+          setSource(r.source)
+        })
         .catch((e) => toast('error', (e as Error).message))
         .finally(() => setSearching(false))
     }, 300)
@@ -127,7 +139,7 @@ export default function TransactionPage({ type }: { type: TxType }) {
     const t = term.trim()
     if (!t) return
     try {
-      const r = await findProductByScan(t)
+      const { value: r } = await lookupCatalog(t)
       if (r.kind === 'none') return toast('notfound', `SKU atau barcode "${t}" tidak ditemukan`)
       if (r.kind === 'ambiguous') return toast('error', `Kode "${t}" cocok dengan lebih dari satu barang`)
       if (r.kind === 'inactive') return toast('notfound', `${r.product.sku} berstatus nonaktif`)
@@ -169,13 +181,34 @@ export default function TransactionPage({ type }: { type: TxType }) {
     setBusy(true)
     try {
       // Muat ulang stok resmi dari server agar pratinjau sesuai kondisi terbaru
-      const fresh = await fetchStock(lines.map((l) => l.sku))
-      const updated = lines.map((l) => {
+      const { value: fresh, source: src } = await stockCatalog(lines.map((l) => l.sku))
+      setSource(src)
+      // Ada antrean offline untuk SKU yang sama? Proyeksikan stok dengan transaksi yang masih menunggu.
+      const hasQueue = userId ? await outbox.hasUnsyncedFor(userId, lines.map((l) => l.sku)) : false
+      const updated: TxLine[] = []
+      for (const l of lines) {
         const p = fresh.get(l.sku)
-        return p ? { ...l, available: p.quantity, averageCost: p.average_cost, inventoryValue: p.inventory_value } : l
-      })
+        if (!p) {
+          updated.push(l)
+          continue
+        }
+        const delta = userId ? await outbox.queuedDelta(userId, l.sku) : '0.0000'
+        updated.push({
+          ...l,
+          available: hasQueue || src === 'cache' ? addSigned(p.quantity, delta) : p.quantity,
+          averageCost: p.average_cost,
+          inventoryValue: p.inventory_value,
+        })
+      }
       setLines(updated)
-      const again = collectIssues(updated)
+      let again = collectIssues(updated)
+      // Stok dari cache/antrean hanya perkiraan: peringatan, bukan penghalang. Server yang memutuskan.
+      const advisoryOnly = src === 'cache' || hasQueue
+      const stockWarn = again.filter((i) => i.message.startsWith('Melebihi stok'))
+      if (advisoryOnly && stockWarn.length) {
+        again = again.filter((i) => !i.message.startsWith('Melebihi stok'))
+        toast('info', 'Stok tampak kurang menurut data terakhir di perangkat. Transaksi tetap dapat disimpan; server akan memvalidasi saat sinkronisasi.')
+      }
       setIssues(again)
       if (again.length) {
         const insufficient = again.find((i) => i.message.startsWith('Melebihi stok'))
@@ -189,12 +222,37 @@ export default function TransactionPage({ type }: { type: TxType }) {
     }
   }
 
+  /** Simpan dokumen ke antrean offline (IndexedDB) dengan kunci idempotensi yang sama. */
+  async function queueCurrent() {
+    if (!userId) throw new Error('Pengguna tidak dikenal; masuk terlebih dahulu')
+    const t = await outbox.enqueue({
+      userId,
+      type,
+      clientTransactionId: clientId.current,
+      payload: {
+        dateIso: dateInfo.iso,
+        dateInput: date,
+        reference,
+        party,
+        notes,
+        items: buildItems(type, lines),
+        allowBackdate: role === 'ADMIN' && allowBackdate,
+        names: Object.fromEntries(lines.map((l) => [l.sku, { name: l.name, unit: l.unit }])),
+      },
+    })
+    setQueued(t)
+    setStep('queued')
+    toast('pending', 'Disimpan di antrean offline (PENDING). Belum menjadi transaksi resmi; akan dikirim otomatis saat online.')
+  }
+
   async function post() {
-    if (!navigator.onLine) {
-      return toast('pending', 'Anda sedang offline. Belum ada yang diposting; transaksi offline tersedia di FASE 8.')
-    }
     setBusy(true)
     try {
+      // Offline, atau masih ada antrean untuk SKU yang sama: masuk antrean agar urutan pencatatan terjaga.
+      if (!isOnline() || (userId && (await outbox.hasUnsyncedFor(userId, lines.map((l) => l.sku))))) {
+        await queueCurrent()
+        return
+      }
       const res = await postTransaction({
         type,
         clientTransactionId: clientId.current,
@@ -210,12 +268,21 @@ export default function TransactionPage({ type }: { type: TxType }) {
       toast(res.duplicate ? 'info' : 'success', res.duplicate ? `Dokumen ${res.transaction_number} sudah diposting sebelumnya` : `Berhasil: ${res.transaction_number} diposting`)
     } catch (e) {
       const f = e as PostFailure
+      if (f.kind === 'offline') {
+        // Jaringan putus saat mengirim (server mungkin sudah memproses): antre dengan kunci yang SAMA agar retry idempoten.
+        try {
+          await queueCurrent()
+        } catch (qe) {
+          toast('error', (qe as Error).message)
+        }
+        return
+      }
       toast(f.kind ? KIND_TOAST[f.kind] : 'error', f.message)
       if (f.kind === 'insufficient' || f.kind === 'notfound' || f.kind === 'inactive' || f.kind === 'validation' || f.kind === 'backdated') {
         // kembali ke form dan segarkan stok server agar pengguna dapat memperbaiki
         setStep('edit')
-        fetchStock(lines.map((l) => l.sku))
-          .then((fresh) =>
+        stockCatalog(lines.map((l) => l.sku))
+          .then(({ value: fresh }) =>
             setLines((cur) =>
               cur.map((l) => {
                 const p = fresh.get(l.sku)
@@ -239,6 +306,7 @@ export default function TransactionPage({ type }: { type: TxType }) {
     setNotes('')
     setAllowBackdate(false)
     setResult(null)
+    setQueued(null)
     setDate(jakartaToday())
     clientId.current = newId()
   }
@@ -249,6 +317,51 @@ export default function TransactionPage({ type }: { type: TxType }) {
 
   const input = 'w-full rounded-md border border-slate-300 px-3 py-2 text-base'
   const btn = 'rounded-md px-4 py-2.5 text-sm font-semibold disabled:opacity-50'
+
+  // ------------------------------------------------------- tersimpan di antrean
+  if (step === 'queued' && queued) {
+    return (
+      <section className="space-y-3">
+        <div className="rounded-lg bg-amber-50 p-4 text-amber-900 shadow-sm">
+          <h2 className="text-lg font-semibold">{TITLE[type]} tersimpan di antrean offline</h2>
+          <p className="text-sm">
+            Status <b>PENDING</b>: ini <b>belum</b> menjadi transaksi resmi dan belum mengubah saldo. Dokumen dikirim ke server secara otomatis saat
+            koneksi tersedia; server akan memeriksa stok dan urutan.
+          </p>
+        </div>
+        <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-2">SKU</th>
+                <th className="px-3 py-2 text-right">Qty</th>
+                {isIn && <th className="px-3 py-2 text-right">Harga beli</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {queued.payload.items.map((i) => (
+                <tr key={i.sku} className="border-t border-slate-100">
+                  <td className="px-3 py-2">
+                    <span className="font-mono">{i.sku}</span> <span className="text-slate-500">{queued.payload.names[i.sku]?.name}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {num(i.quantity)} {queued.payload.names[i.sku]?.unit}
+                  </td>
+                  {isIn && <td className="px-3 py-2 text-right">{rp(i.unit_cost ?? 0, 6)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button className={`${btn} bg-[#0b1f4d] text-white`} onClick={reset}>
+          Transaksi baru
+        </button>
+        <p className="text-xs text-slate-500">
+          Lihat dan kelola di menu Antrean Offline. Jika stok berubah di perangkat lain, transaksi bisa berstatus CONFLICT dan perlu Anda perbaiki.
+        </p>
+      </section>
+    )
+  }
 
   // ---------------------------------------------------------------- selesai
   if (step === 'done' && result) {
@@ -357,6 +470,13 @@ export default function TransactionPage({ type }: { type: TxType }) {
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold">{TITLE[type]}</h2>
+      {(!online || source === 'cache') && (
+        <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          Mode offline: pencarian dan stok memakai data terakhir di perangkat
+          {cachedAt ? ` (diperbarui ${new Date(cachedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })})` : ' (belum pernah diperbarui)'}. Transaksi akan
+          masuk antrean dan diverifikasi server saat online.
+        </p>
+      )}
 
       <div className="grid gap-3 rounded-lg bg-white p-4 shadow-sm sm:grid-cols-2">
         <label className="text-sm">Tanggal

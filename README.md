@@ -76,4 +76,13 @@ Semua angka dihitung di database (`supabase/migrations/20261118000004_reports.sq
 
 Catatan: transaksi PENDING/DRAFT tidak pernah dihitung sebagai saldo. Transaksi mundur (disetujui ADMIN) tetap berurutan menurut urutan posting; saldo awal dan akhir kartu stok memakai jumlah mutasi per tanggal sehingga identitas saldo awal + masuk - keluar = saldo akhir selalu berlaku.
 
-Status: FASE 7 (kartu stok, laporan, dashboard).
+## Offline dan sinkronisasi
+
+- **Cache** (IndexedDB/Dexie): master barang dan saldo terakhir yang diketahui, diperbarui otomatis saat online. Dipakai untuk mencari dan scan barang saat offline. Bukan saldo resmi.
+- **Antrean offline**: transaksi masuk/keluar yang dicatat offline (atau saat masih ada antrean untuk SKU yang sama) disimpan di IndexedDB dengan UUID, `client_transaction_id`, waktu, pengguna, jenis, payload, dan status `PENDING`/`SYNCING`/`SYNCED`/`FAILED`/`CONFLICT`. Belum resmi dan tidak memengaruhi saldo.
+- **Sinkronisasi** (`src/services/sync.ts`): otomatis saat online, berurutan menurut pencatatan lokal, idempoten lewat `client_transaction_id`, satu proses pada satu waktu. Server memvalidasi stok, urutan, dan menghitung Moving Average.
+- **Jika gagal**: data lokal tidak dihapus dan tidak diubah otomatis; penyebab ditampilkan; pengguna dapat memperbaiki atau membatalkan di menu Antrean Offline. Transaksi `SYNCED` tidak pernah dikirim ulang. Transaksi berikutnya untuk SKU yang sama ditahan selama yang sebelumnya gagal/konflik.
+- **Service worker** hanya meng-cache app shell dan aset (tanpa cache API), jadi aplikasi dapat dibuka offline.
+- Transaksi offline **tidak dijamin berhasil** bila stok berubah di perangkat lain. Uji manual perangkat: [tests/MANUAL_OFFLINE.md](tests/MANUAL_OFFLINE.md).
+
+Status: FASE 8 (offline dan sinkronisasi hybrid).

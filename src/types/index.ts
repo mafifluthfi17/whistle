@@ -1,4 +1,7 @@
-﻿// Nilai NUMERIC dari Postgres diterima sebagai string agar tidak kehilangan presisi.
+﻿import type { PostResult } from '../services/transactions'
+import type { PostErrorKind, PostItem } from '../utils/transactionForm'
+
+// Nilai NUMERIC dari Postgres diterima sebagai string agar tidak kehilangan presisi.
 export type Numeric = string
 
 export type Role = 'ADMIN' | 'WAREHOUSE' | 'VIEWER'
@@ -30,15 +33,17 @@ export interface ProductInput {
   is_active: boolean
 }
 
+/** Cache master barang di IndexedDB (untuk pencarian dan scan saat offline). */
 export interface CachedItem {
   sku: string
   barcode: string | null
   name: string
   category: string | null
-  unit: string | null
+  unit: string
   active: boolean
 }
 
+/** Cache saldo stok terakhir yang diketahui dari server. Bukan saldo resmi. */
 export interface CachedBalance {
   sku: string
   qty: Numeric
@@ -47,15 +52,44 @@ export interface CachedBalance {
   updatedAt: string
 }
 
-export interface PendingTransaction {
+export interface MetaRow {
+  key: string
+  value: string
+}
+
+export interface OutboxPayload {
+  /** Waktu transaksi dicatat (ISO). Tetap dipakai saat sinkronisasi. */
+  dateIso: string
+  /** Tanggal pilihan pengguna (YYYY-MM-DD) untuk ditampilkan/diubah. */
+  dateInput: string
+  reference: string
+  party: string
+  notes: string
+  items: PostItem[]
+  allowBackdate: boolean
+  /** Nama dan satuan untuk tampilan antrean */
+  names: Record<string, { name: string; unit: string }>
+}
+
+/** Satu transaksi dalam antrean offline. */
+export interface OutboxTxn {
+  /** Urutan pencatatan lokal (auto-increment) */
+  seq?: number
+  id: string
   clientTransactionId: string
-  type: TransactionType
-  sku: string
-  qty: Numeric
-  unitCost?: Numeric
-  documentNo?: string
-  note?: string
+  userId: string
+  type: 'IN' | 'OUT'
+  payload: OutboxPayload
   createdAt: string
   status: SyncStatus
+  /** SKU yang disentuh (indeks untuk deteksi ketergantungan) */
+  skus: string[]
+  attempts: number
+  lastAttemptAt?: string
+  errorKind?: PostErrorKind
   error?: string
+  /** Id transaksi sebelumnya (SKU sama) yang gagal sehingga transaksi ini ditahan */
+  blockedBy?: string
+  result?: PostResult
+  syncedAt?: string
 }
