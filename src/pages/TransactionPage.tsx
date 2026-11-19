@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useToast, type ToastKind } from '../components/Toast'
+import { addQuantities, parseDecimal } from '../utils/decimal'
+
+// ZXing cukup besar: dimuat hanya saat panel scan dibuka.
+const ScanModal = lazy(() => import('../components/ScanModal'))
 import {
   PostFailure,
   fetchStock,
-  findProductExact,
+  findProductByScan,
   postTransaction,
   searchProducts,
   type PostResult,
@@ -85,6 +89,7 @@ export default function TransactionPage({ type }: { type: TxType }) {
   const [term, setTerm] = useState('')
   const [hits, setHits] = useState<StockedProduct[]>([])
   const [searching, setSearching] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false)
 
   // Pencarian barang (debounce)
   useEffect(() => {
@@ -122,14 +127,31 @@ export default function TransactionPage({ type }: { type: TxType }) {
     const t = term.trim()
     if (!t) return
     try {
-      const r = await findProductExact(t)
-      if (!r) return toast('notfound', `SKU atau barcode "${t}" tidak ditemukan`)
-      if (r.inactive) return toast('notfound', `${r.found.sku} berstatus nonaktif`)
-      addProduct(r.found)
+      const r = await findProductByScan(t)
+      if (r.kind === 'none') return toast('notfound', `SKU atau barcode "${t}" tidak ditemukan`)
+      if (r.kind === 'ambiguous') return toast('error', `Kode "${t}" cocok dengan lebih dari satu barang`)
+      if (r.kind === 'inactive') return toast('notfound', `${r.product.sku} berstatus nonaktif`)
+      addProduct(r.product)
     } catch (e) {
       toast('error', (e as Error).message)
     }
   }
+
+  /** Dari hasil scan: tambah baris baru, atau gabungkan quantity jika SKU sudah ada. */
+  const addScanned = useCallback(
+    (p: StockedProduct, quantity: string, unitCost: string) => {
+      setLines((cur) => {
+        const i = cur.findIndex((l) => l.sku === p.sku)
+        if (i < 0) return [...cur, { ...lineFrom(p), quantity, unitCost }]
+        const old = parseDecimal(cur[i].quantity, { maxScale: 4, maxIntDigits: 16 })
+        const add = parseDecimal(quantity, { maxScale: 4, maxIntDigits: 16 })
+        const merged = old.ok && add.ok ? addQuantities(old.value, add.value) : quantity
+        return cur.map((l, k) => (k === i ? { ...l, quantity: merged, unitCost: unitCost || l.unitCost } : l))
+      })
+      toast('success', `${p.sku} ditambahkan (${quantity})`)
+    },
+    [toast],
+  )
 
   const dateInfo = useMemo(() => resolveTransactionDate(date), [date])
 
@@ -377,6 +399,9 @@ export default function TransactionPage({ type }: { type: TxType }) {
           />
           <button className={`${btn} border border-[#0b1f4d] text-[#0b1f4d]`} onClick={() => void submitManual()}>Tambah</button>
         </div>
+        <button className={`${btn} mt-2 w-full bg-[#0b1f4d] text-white`} onClick={() => setScanOpen(true)}>
+          Scan Barcode / QR dengan Kamera
+        </button>
         {searching && <p className="mt-2 text-xs text-slate-500">Mencari…</p>}
         {hits.length > 0 && (
           <ul className="mt-2 divide-y divide-slate-100 rounded border border-slate-200" role="listbox" aria-label="Hasil pencarian">
@@ -434,6 +459,12 @@ export default function TransactionPage({ type }: { type: TxType }) {
       <button className={`${btn} bg-[#0b1f4d] text-white`} disabled={busy} onClick={() => void goPreview()}>
         {busy ? 'Memeriksa…' : 'Pratinjau'}
       </button>
+
+      {scanOpen && (
+        <Suspense fallback={<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 text-white">Memuat scanner…</div>}>
+          <ScanModal type={type} onAdd={addScanned} onClose={() => setScanOpen(false)} />
+        </Suspense>
+      )}
     </section>
   )
 }

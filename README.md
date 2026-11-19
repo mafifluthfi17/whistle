@@ -59,4 +59,10 @@ Tes konkurensi memakai Postgres sungguhan (`embedded-postgres`), jadi `npm test`
 
 Menu untuk ADMIN dan WAREHOUSE (mode online). Cari barang (SKU/barcode/nama) atau ketik SKU manual, banyak SKU per dokumen, pratinjau, lalu posting lewat `post_transaction`. Stok tersedia dan average cost selalu dimuat dari server; angka di pratinjau hanya perkiraan. Setiap dokumen punya satu `client_transaction_id` sehingga klik ganda atau retry tidak menggandakan transaksi. Transaksi offline dikerjakan di FASE 8.
 
-Status: FASE 5 (transaksi masuk dan keluar).
+## Scanner barcode dan QR
+
+Tombol "Scan Barcode / QR dengan Kamera" di Barang Masuk dan Barang Keluar (kamera belakang default, mulai/hentikan, senter bila didukung, pilih kamera, input manual SKU). Format: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39, QR Code. Kamera hanya berfungsi lewat HTTPS. Uji manual Android: [tests/MANUAL_ANDROID.md](tests/MANUAL_ANDROID.md).
+
+Catatan teknis: `UPCEReader` bawaan `@zxing/library` 0.23 rusak, sehingga UPC-E tidak pernah terbaca; aplikasi menambalnya di `src/utils/upcePatch.ts` (teruji dengan gambar sintetis, belum dengan kamera nyata).
+
+Status: FASE 6 (scanner).

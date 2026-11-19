@@ -76,6 +76,12 @@ export function multiplyRound(qty: string, price: string): string {
   return formatScaled((Q * P + 5n * 10n ** 7n) / 10n ** 8n, 2) // skala 10 -> 2
 }
 
+/** Jumlahkan dua quantity (maks 4 desimal) tanpa float; hasil tanpa nol di belakang koma. */
+export function addQuantities(a: string, b: string): string {
+  const s = formatScaled(toScaled(a, 4) + toScaled(b, 4), 4)
+  return s.includes('.') ? s.replace(/\.?0+$/, '') : s
+}
+
 /** Bandingkan dua desimal non-negatif: -1, 0, atau 1. */
 export function compareDecimal(a: string, b: string): number {
   const A = toScaled(a, 6)

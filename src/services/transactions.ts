@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { mapPostError, toRpcParams, type PostError, type PostRequest } from '../utils/transactionForm'
+import { cleanScan, pickBestMatch, scanCandidates } from '../utils/scanLogic'
 
 export type { PostRequest }
 
@@ -80,6 +81,31 @@ export async function findProductExact(term: string): Promise<FindResult> {
   if (!row) return null
   const p = mapRow(row)
   return { found: p, inactive: !p.is_active } as FindResult
+}
+
+export type ScanLookup =
+  | { kind: 'found'; product: StockedProduct; matchedBy: 'barcode' | 'sku'; candidate: string }
+  | { kind: 'inactive'; product: StockedProduct }
+  | { kind: 'ambiguous'; candidate: string }
+  | { kind: 'none'; scanned: string }
+
+/**
+ * Cari barang dari hasil scan barcode/QR atau ketikan manual.
+ * Mencoba beberapa bentuk kode (UPC-A/EAN-13/UPC-E) dan SKU tanpa membedakan huruf.
+ */
+export async function findProductByScan(raw: string): Promise<ScanLookup> {
+  const candidates = scanCandidates(raw).map(sanitize).filter(Boolean)
+  const scanned = cleanScan(raw)
+  if (candidates.length === 0) return { kind: 'none', scanned }
+  const filter = candidates.flatMap((c) => [`sku.eq.${c}`, `barcode.eq.${c}`, `sku.ilike.${c}`]).join(',')
+  const { data, error } = await client().from('products').select(SELECT).or(filter).limit(20)
+  if (error) throw new Error(error.message)
+  const rows = ((data ?? []) as unknown as ProductRow[]).map(mapRow)
+  const pick = pickBestMatch(candidates, rows)
+  if (pick.kind === 'none') return { kind: 'none', scanned }
+  if (pick.kind === 'ambiguous') return pick
+  if (!pick.product.is_active) return { kind: 'inactive', product: pick.product }
+  return { kind: 'found', product: pick.product, matchedBy: pick.matchedBy, candidate: pick.candidate }
 }
 
 /** Muat ulang stok resmi untuk beberapa SKU (mis. sebelum posting). */

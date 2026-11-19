@@ -40,6 +40,10 @@ export async function startRealDb(): Promise<RealDb> {
     persistent: false,
     onLog: () => {},
     onError: () => {},
+    // Memori kecil: beberapa klaster tes berjalan paralel dan Windows dapat kehabisan memori komit
+    // (error 1455) dengan shared_buffers bawaan 128MB.
+    // io_method=sync: PG 18 menjalankan proses "io_worker" yang tidak ikut berhenti di Windows dan menumpuk.
+    postgresFlags: ['-c', 'io_method=sync', '-c', 'shared_buffers=16MB', '-c', 'max_connections=60', '-c', 'fsync=off', '-c', 'synchronous_commit=off', '-c', 'full_page_writes=off'],
   })
   await server.initialise()
   await server.start()
@@ -48,6 +52,7 @@ export async function startRealDb(): Promise<RealDb> {
   // Saat server dimatikan, koneksi menganggur menerima FATAL 57P01 ("terminating connection due to
   // administrator command"). Itu normal; tanpa handler, pg melempar error yang tidak tertangani.
   admin.on('error', () => {})
+  admin.on('connect', (client) => client.on('error', () => {})) // sekali per koneksi, bukan per panggilan
   await admin.query(SUPABASE_STUB)
   const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
   for (const f of files) await admin.query(readFileSync(join(MIGRATIONS_DIR, f), 'utf8'))
@@ -62,7 +67,6 @@ export async function startRealDb(): Promise<RealDb> {
     },
     async callAs(userId, sql, params = [], role = 'authenticated') {
       const c = await admin.connect()
-      c.on('error', () => {})
       try {
         await c.query('begin')
         await c.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify(userId ? { sub: userId } : {})])

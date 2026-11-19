@@ -38,5 +38,7 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     testTimeout: 60_000,
     hookTimeout: 180_000,
+    // Tes DB memakai PGlite/Postgres sungguhan yang memakan memori; batasi paralelisme berkas.
+    maxWorkers: 3,
   },
 })
