@@ -6,7 +6,7 @@
 
 Aplikasi inventori gudang hybrid cloud-local berbentuk PWA (Android dan desktop) dengan metode **Perpetual Moving Weighted Average**. Supabase (PostgreSQL) adalah sumber kebenaran; IndexedDB (Dexie) hanya untuk cache dan antrean offline.
 
-- Aplikasi (GitHub Pages, HTTPS): https://mafifluthfi17.github.io/whistle/
+- Aplikasi (GitHub Pages, HTTPS): https://whistle-id.github.io/whistle/
 - Panduan pengguna: [docs/PANDUAN_PENGGUNA.md](docs/PANDUAN_PENGGUNA.md)
 - Hasil pengujian: [tests/TEST_CASES.md](tests/TEST_CASES.md)
 
@@ -84,7 +84,7 @@ Workflow `.github/workflows/ci.yml`: install, typecheck, tes, build, deploy ke P
 2. Settings > Secrets and variables > Actions: tambahkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`.
 3. Push ke `main`. Base path otomatis mengikuti nama repository.
 
-Smoke test manual: `npm run smoke -- https://mafifluthfi17.github.io/whistle/ --supabase-url=https://<ref>.supabase.co`.
+Smoke test manual: `npm run smoke -- https://whistle-id.github.io/whistle/ --supabase-url=https://<ref>.supabase.co`.
 
 ### 4. Memasang di Android
 

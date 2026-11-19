@@ -5,7 +5,7 @@ Postgres sungguhan). Yang **hanya bisa diuji di perangkat nyata**: mode pesawat,
 terpasang, penyimpanan IndexedDB browser, dan dua perangkat yang bekerja bersamaan.
 
 **Persiapan**
-- Buka https://mafifluthfi17.github.io/whistle/ di Chrome Android dan di komputer.
+- Buka https://whistle-id.github.io/whistle/ di Chrome Android dan di komputer.
 - Login sebagai ADMIN/WAREHOUSE. Siapkan minimal 3 barang bersaldo (mis. A stok 10, B stok 10, C stok 0).
 - **Sambungkan ke internet dulu dan buka menu Antrean Offline**: pastikan "Data barang di perangkat" terisi
   (jumlah > 0 dan ada waktu pembaruan). Tanpa ini pencarian offline tidak punya data.

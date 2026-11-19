@@ -4,7 +4,7 @@
 
 *Smart Stock. Accurate Value. Total Control*
 
-Alamat aplikasi: https://mafifluthfi17.github.io/whistle/
+Alamat aplikasi: https://whistle-id.github.io/whistle/
 
 ## 1. Masuk dan peran
 

@@ -4,7 +4,7 @@ Dikerjakan di HP Android nyata. Logika pencarian dan pembacaan kode sudah diuji 
 tetapi **kamera, izin, senter, dan fokus hanya dapat diuji di perangkat**.
 
 **Persiapan**
-- Buka aplikasi dari alamat HTTPS: https://mafifluthfi17.github.io/whistle/ (kamera tidak berfungsi di http).
+- Buka aplikasi dari alamat HTTPS: https://whistle-id.github.io/whistle/ (kamera tidak berfungsi di http).
 - Login sebagai ADMIN atau WAREHOUSE. Siapkan beberapa barang di Master Barang dengan barcode terisi.
 - Siapkan label uji untuk setiap format (cetak atau tampilkan di layar lain): EAN-13, EAN-8, UPC-A, UPC-E,
   Code 128, Code 39, QR Code. Generator gratis: https://barcode.tec-it.com atau bwip-js.playground.
