@@ -5,6 +5,9 @@ import Layout, { NAV, navFor } from './components/Layout'
 import Login from './pages/Login'
 import MasterBarang from './pages/MasterBarang'
 import Placeholder from './pages/Placeholder'
+import Dashboard from './pages/Dashboard'
+import KartuStok from './pages/KartuStok'
+import Laporan from './pages/Laporan'
 import TransactionPage from './pages/TransactionPage'
 import { APP_FULL_NAME, APP_NAME, APP_TAGLINE } from './utils/brand'
 
@@ -46,6 +49,15 @@ export default function App() {
   switch (current.id) {
     case 'master':
       page = <MasterBarang />
+      break
+    case 'dashboard':
+      page = <Dashboard onNavigate={navigate} />
+      break
+    case 'kartu':
+      page = <KartuStok />
+      break
+    case 'laporan':
+      page = <Laporan />
       break
     case 'masuk':
       page = <TransactionPage key="IN" type="IN" />

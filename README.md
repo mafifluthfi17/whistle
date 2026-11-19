@@ -65,4 +65,15 @@ Tombol "Scan Barcode / QR dengan Kamera" di Barang Masuk dan Barang Keluar (kame
 
 Catatan teknis: `UPCEReader` bawaan `@zxing/library` 0.23 rusak, sehingga UPC-E tidak pernah terbaca; aplikasi menambalnya di `src/utils/upcePatch.ts` (teruji dengan gambar sintetis, belum dengan kamera nyata).
 
-Status: FASE 6 (scanner).
+## Kartu stok, laporan, dan dashboard
+
+Semua angka dihitung di database (`supabase/migrations/20261118000004_reports.sql`) dari ledger dan saldo resmi, lalu ditampilkan apa adanya:
+
+- **Kartu Stok** per SKU: saldo awal, mutasi, saldo akhir, filter tanggal, klik nomor transaksi untuk detail dan penelusuran.
+- **Laporan**: Stock Summary, Inventory Valuation (dengan bukti rekonsiliasi saldo vs ledger), Stock Movement, Low Stock, Zero Stock, Transaction History (filter tanggal, pengguna, jenis, status).
+- **Dashboard**: total SKU/qty/nilai, masuk dan keluar hari ini, transaksi PENDING (tidak dibukukan), low/zero stock, aktivitas terakhir.
+- **Export Excel**: master barang, saldo stok, kartu stok, inventory valuation, stock movement, barang masuk, barang keluar, transaction history, dan low stock. Nama file memuat periode, SKU/barcode tetap teks, tanggal berupa tanggal Excel (jam Jakarta), format rupiah konsisten, dan ada baris TOTAL. Export audit trail dikerjakan di FASE 9.
+
+Catatan: transaksi PENDING/DRAFT tidak pernah dihitung sebagai saldo. Transaksi mundur (disetujui ADMIN) tetap berurutan menurut urutan posting; saldo awal dan akhir kartu stok memakai jumlah mutasi per tanggal sehingga identitas saldo awal + masuk - keluar = saldo akhir selalu berlaku.
+
+Status: FASE 7 (kartu stok, laporan, dashboard).
